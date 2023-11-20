@@ -1,10 +1,18 @@
 from math import inf
-from takpy import new_game, Color, GameResult, Game, Move, Piece, MoveKind
+from takpy import (
+    new_game,
+    Color,
+    GameResult,
+    Game,
+    Move,
+    Piece,
+    MoveKind,
+)
 
 
 def eval(game: Game) -> float:
     """Evaluate the board position. Positive outputs mean good for white, negative outputs mean good for black. Zero means draw."""
-    match game.result():
+    match game.result:
         case GameResult.WhiteWin:
             return inf
         case GameResult.BlackWin:
@@ -60,18 +68,18 @@ def unique_rows_and_cols(game: Game, color: Color) -> int:
 def move_rank(game: Game, move: Move) -> int:
     """Evaluate a move in the current position. Higher outputs mean the move is better."""
     board = game.board
-    (row, col) = move.square()
+    (row, col) = move.square
 
     score = 0
     # Rank central moves higher.
     score -= 10 * abs(row - (game.size - 1) / 2)
     score -= 10 * abs(col - (game.size - 1) / 2)
 
-    if move.kind() == MoveKind.Place:
+    if move.kind == MoveKind.Place:
         # Reward placements.
         score += 100
         # Rank flat placement above all others.
-        if move.piece() == Piece.Flat:
+        if move.piece == Piece.Flat:
             score += 100
 
         # Reward placing next to pieces of the same color.
@@ -145,7 +153,7 @@ def player_move(game: Game):
 
 def bot_move(game: Game):
     # Find out which moves are possible.
-    moves = game.possible_moves()
+    moves = game.possible_moves
     # Sort the moves according to our `move_rank` function.
     moves.sort(key=lambda move: move_rank(game, move), reverse=True)
 
@@ -175,14 +183,14 @@ def main():
     player_color = Color.White
 
     pretty_print(game)
-    while game.result() == GameResult.Ongoing:
+    while game.result == GameResult.Ongoing:
         if game.to_move == player_color:
             player_move(game)
         else:
             bot_move(game)
         pretty_print(game)
 
-    match game.result():
+    match game.result:
         case GameResult.WhiteWin:
             print("🟧 wins!")
         case GameResult.BlackWin:
