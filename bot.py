@@ -9,6 +9,10 @@ from takpy import (
     MoveKind,
 )
 
+# Type hints
+Square = None | tuple[Piece, list[Color]]
+Board = list[list[Square]]
+
 
 def eval(game: Game) -> float:
     """Evaluate the board position. Positive outputs mean good for white, negative outputs mean good for black. Zero means draw."""
