@@ -24,6 +24,7 @@ def eval(game: Game) -> float:
         case GameResult.Draw:
             return 0
 
+    # TODO: Improve this a lot, using ideas from move_ordering
     return (
         calculate_fcd(game)
         + unique_rows_and_cols(game, Color.White)
@@ -69,42 +70,115 @@ def unique_rows_and_cols(game: Game, color: Color) -> int:
     return rows + columns
 
 
-def move_rank(game: Game, move: Move) -> int:
-    """Evaluate a move in the current position. Higher outputs mean the move is better."""
+def cols(board: Board, size: int) -> Board:
+    return [[row[i] for row in board] for i in range(size)]
+
+
+def row_col_score(board: Board, size: int, color: Color) -> tuple[list[int], list[int]]:
+    row_score = [
+        sum(
+            road_piece(square[0]) and square[1][-1] == color
+            for square in row
+            if square is not None
+        )
+        for row in board
+    ]
+    col_score = [
+        sum(
+            road_piece(square[0]) and square[1][-1] == color
+            for square in col
+            if square is not None
+        )
+        for col in cols(board, size)
+    ]
+    return row_score, col_score
+
+
+def road_piece(piece: Piece) -> bool:
+    match piece:
+        case Piece.Flat | Piece.Cap:
+            return True
+        case Piece.Wall:
+            return False
+
+
+def neighbor_stacks(board: Board, size: int, row: int, col: int) -> list[Square]:
+    neighbors = []
+    if row < size - 1:
+        neighbors.append(board[row + 1][col])
+    if row >= 1:
+        neighbors.append(board[row - 1][col])
+    if col < size - 1:
+        neighbors.append(board[row][col + 1])
+    if col >= 1:
+        neighbors.append(board[row][col - 1])
+    return [n for n in neighbors if n is not None]
+
+
+PLACEMENT_VALUE = 100
+FLAT_VALUE = 100
+CAP_VALUE = 50
+WALL_VALUE = 0
+ROAD_MOTIVATION = 10
+CENTER_PRIORITY = 20
+OPPONENT_NEXT_TO_NOBLE = 50
+STACK_NEXT_TO_NOBLE = 10
+FLAT_CAPTURE_PUNISHMENT = 100
+SPREAD_ME_BONUS = 20
+
+
+def move_ordering(game: Game) -> list[Move]:
+    possible_moves = game.possible_moves
+    me = game.to_move
+    opponent = me.next()
     board = game.board
-    (row, col) = move.square
+    row_score, col_score = row_col_score(board, game.size, me)
 
-    score = 0
-    # Rank central moves higher.
-    score -= 10 * abs(row - (game.size - 1) / 2)
-    score -= 10 * abs(col - (game.size - 1) / 2)
+    def move_rank(move: Move) -> float:
+        row, col = move.square
+        distance_to_center = abs(row - (game.size + 1) / 2) + abs(
+            col - (game.size + 1) / 2
+        )
+        neighbors = neighbor_stacks(board, game.size, row, col)
+        score = 0
+        match move.kind:
+            case MoveKind.Place:
+                score += PLACEMENT_VALUE
+                # Road rewards
+                match move.piece:
+                    case Piece.Flat | Piece.Cap:
+                        score += ROAD_MOTIVATION * (row_score[row] + col_score[col])
+                        score -= CENTER_PRIORITY * distance_to_center
+                # Noble rewards
+                match move.piece:
+                    case Piece.Cap | Piece.Wall:
+                        for n in neighbors:
+                            if n[1][-1] == opponent:
+                                score += OPPONENT_NEXT_TO_NOBLE
+                            score += STACK_NEXT_TO_NOBLE * len(n[1])
+                # Piece-type bonus
+                match move.piece:
+                    case Piece.Flat:
+                        score += FLAT_VALUE
+                    case Piece.Cap:
+                        score += CAP_VALUE
+                    case Piece.Wall:
+                        score += WALL_VALUE
+            case MoveKind.Spread:
+                stack = board[row][col]
+                piece, colors = stack
+                # Punish flat captures
+                if piece == Piece.Flat:
+                    score -= FLAT_CAPTURE_PUNISHMENT
+                # Reward dropping our color on top
+                dropped = 0
+                for drop_count in move.drop_counts[:-1]:
+                    dropped += drop_count
+                    if colors[dropped - 1] == me:
+                        score += SPREAD_ME_BONUS
+        return score
 
-    if move.kind == MoveKind.Place:
-        # Reward placements.
-        score += 100
-        # Rank flat placement above all others.
-        if move.piece == Piece.Flat:
-            score += 100
-
-        # Reward placing next to pieces of the same color.
-        if is_color(board, row - 1, col, game.to_move):
-            score += 20
-        if is_color(board, row + 1, col, game.to_move):
-            score += 20
-        if is_color(board, row, col - 1, game.to_move):
-            score += 20
-        if is_color(board, row, col + 1, game.to_move):
-            score += 20
-    else:
-        # Rank spreads with flats on top lower
-        top = game.board[row][col][-1]
-        if top == Piece.Flat:
-            score -= 100
-
-    # In the first two plies we are placing the opponents piece, so we reverse the score.
-    if game.ply < 2:
-        return -score
-    return score
+    return sorted(game.possible_moves, key=move_rank, reverse=game.ply > 1)
 
 
 def is_color(
@@ -156,10 +230,7 @@ def player_move(game: Game):
 
 
 def bot_move(game: Game):
-    # Find out which moves are possible.
-    moves = game.possible_moves
-    # Sort the moves according to our `move_rank` function.
-    moves.sort(key=lambda move: move_rank(game, move), reverse=True)
+    moves = move_ordering(game)
 
     # Find out which move gives the best evaluation.
     # We do this by trying each move in turn and comparing the static evaluations.
@@ -182,8 +253,13 @@ def bot_move(game: Game):
     game.play(best_move)
 
 
+SIZE = 6
+KOMI = 2
+HALF_KOMI = int(KOMI * 2)
+
+
 def main():
-    game = new_game(6, 4)
+    game = new_game(SIZE, HALF_KOMI)
     player_color = Color.White
 
     pretty_print(game)
