@@ -14,7 +14,7 @@ Square = None | tuple[Piece, list[Color]]
 Board = list[list[Square]]
 
 
-def eval(game: Game) -> float:
+def game_eval(game: Game) -> float:
     """Evaluate the board position. Positive outputs mean good for white, negative outputs mean good for black. Zero means draw."""
     match game.result:
         case GameResult.WhiteWin:
@@ -229,7 +229,88 @@ def player_move(game: Game):
             print(e)
 
 
+# https://en.wikipedia.org/wiki/Negamax
+def negamax(game: Game, depth: int) -> float:
+    match game.result:
+        case GameResult.WhiteWin:
+            return inf
+        case GameResult.BlackWin:
+            return -inf
+        case GameResult.Draw:
+            return 0.0
+    if depth == 0:
+        return game_eval(game)
+    if game.to_move == Color.White:
+        for move in game.possible_moves:
+            clone = game.clone()
+            clone.play(move)
+            value = max(value, negamax(clone, depth - 1))
+    else:
+        for move in game.possible_moves:
+            clone = game.clone()
+            clone.play(move)
+            value = min(value, negamax(clone, depth - 1))
+    return value
+
+
+# https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
+def alpha_beta(game: Game, depth: int, alpha: float = -inf, beta: float = inf) -> float:
+    match game.to_move, game.result:
+        case GameResult.WhiteWin:
+            return inf
+        case GameResult.BlackWin:
+            return -inf
+        case GameResult.Draw:
+            return 0.0
+    if depth == 0:
+        return game_eval(game)
+
+    moves = move_ordering(game)
+    if game.to_move == Color.White:
+        value = -inf
+        for move in moves:
+            search_value = alpha_beta(game.clone_and_play(move), depth - 1, alpha, beta)
+            value = max(value, search_value)
+            if value > beta:
+                break  # beta cutoff
+            alpha = max(alpha, beta)
+        return value
+
+    else:
+        value = inf
+        for move in moves:
+            search_value = alpha_beta(game.clone_and_play(move), depth - 1, alpha, beta)
+            value = min(value, search_value)
+            if value < alpha:
+                break  # alpha cutoff
+            beta = min(beta, value)
+
+
 def bot_move(game: Game):
+    moves = move_ordering(game)
+
+    # Find out which move gives the best evaluation.
+    # We do this by trying each move in turn and comparing the static evaluations.
+    best_eval = -inf
+    best_move = moves[0]
+    for move in moves:
+        # Create a clone of the game and try playing the move.
+        copy = game.clone()
+        copy.play(move)
+        # Evaluate the position afterwards.
+        current_eval = eval(copy)
+        # The evaluation is from white's perspective, so we need to flip it when black.
+        if game.to_move == Color.Black:
+            current_eval = -current_eval
+        # If the current evaluation is better than the previous best, this move must be better.
+        if current_eval > best_eval:
+            best_move = move
+            best_eval = current_eval
+    print("bot move:", best_move, "with eval", best_eval)
+    game.play(best_move)
+
+
+def bot_move_old(game: Game):
     moves = move_ordering(game)
 
     # Find out which move gives the best evaluation.
