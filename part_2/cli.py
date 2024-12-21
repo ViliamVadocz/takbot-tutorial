@@ -1,49 +1,12 @@
-from takpy import new_game, GameResult, Move, Piece, Color, Game
-
+from takpy import Color, Game, GameResult, Move, new_game, Piece
 from bot import bot_move
-
-
-def cli():
-    player_color = Color.White
-    game = new_game(6)
-
-    while game.result == GameResult.Ongoing:
-        pretty_print(game)
-        if game.to_move == player_color:
-            player_move(game)
-        else:
-            bot_move(game)
-
-    pretty_print(game)
-    match game.result:
-        case GameResult.WhiteWin:
-            print("🟧 wins!")
-        case GameResult.BlackWin:
-            print("🟦 wins!")
-        case GameResult.Draw:
-            print("It's a draw!")
-
-
-def player_move(game: Game):
-    while True:
-        user_input = input("enter move: ")
-        try:
-            move = Move.from_ptn(user_input)
-        except ValueError as error:
-            print(f"invalid PTN: {error}")
-            continue
-        try:
-            game.play(move)
-            break  # valid move was entered and played
-        except ValueError as error:
-            print(f"invalid move: {error}")
 
 
 def pretty_print(game: Game):
     # Print the TPS.
     print(game)
     # Print the board.
-    for rank, row in reversed(list(enumerate(game.board, 1))):
+    for rank, row in reversed(list(enumerate(game.board(), 1))):
         print(rank, end=" ")
         for square in row:
             # If the square is empty, print the empty symbol.
@@ -69,6 +32,43 @@ def pretty_print(game: Game):
         print()
     # Print the files.
     print("   a  b  c  d  e  f  g  h"[: 1 + game.size * 3])
+
+
+def player_move(game: Game):
+    while True:
+        user_input = input("enter move: ")
+        try:
+            move = Move(user_input)  # type: ignore
+        except ValueError as error:
+            print(f"invalid PTN: {error}")
+            continue
+        try:
+            game.play(move)
+            break  # valid move was entered and played
+        except ValueError as error:
+            print(f"invalid move: {error}")
+
+
+def cli():
+    player_color = Color.White
+    game = new_game(6)
+
+    while game.result() == GameResult.Ongoing:
+        pretty_print(game)
+        if game.to_move == player_color:
+            player_move(game)
+        else:
+            bot_move(game)
+
+    # Summary after the game.
+    pretty_print(game)
+    match game.result:
+        case GameResult.WhiteWin:
+            print("🟧 wins!")
+        case GameResult.BlackWin:
+            print("🟦 wins!")
+        case GameResult.Draw:
+            print("It's a draw!")
 
 
 if __name__ == "__main__":
