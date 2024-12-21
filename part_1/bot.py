@@ -1,11 +1,11 @@
-from takpy import new_game, GameResult, Move, Piece, Color, Game
+from takpy import new_game, GameResult, Move, Game, Piece, Color
 
 
 def pretty_print(game: Game):
     # Print the TPS.
     print(game)
     # Print the board.
-    for rank, row in reversed(list(enumerate(game.board, 1))):
+    for rank, row in reversed(list(enumerate(game.board(), 1))):
         print(rank, end=" ")
         for square in row:
             # If the square is empty, print the empty symbol.
@@ -36,12 +36,12 @@ def pretty_print(game: Game):
 def cli():
     game = new_game(6)
 
-    while game.result == GameResult.Ongoing:
+    while game.result() == GameResult.Ongoing:
         pretty_print(game)
         user_input = input("enter move: ")
 
         try:
-            move = Move.from_ptn(user_input)
+            move = Move(user_input)  # type: ignore
         except ValueError as error:
             print(f"invalid PTN: {error}")
             continue
@@ -51,6 +51,7 @@ def cli():
         except ValueError as error:
             print(f"invalid move: {error}")
 
+    # Summary after the game.
     pretty_print(game)
     match game.result:
         case GameResult.WhiteWin:
