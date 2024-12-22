@@ -34,7 +34,7 @@ def pretty_print(game: Game):
     print("   a  b  c  d  e  f  g  h"[: 1 + game.size * 3])
 
 
-def player_move(game: Game):
+def player_move(game: Game) -> Move:
     while True:
         user_input = input("enter move: ")
         try:
@@ -43,8 +43,8 @@ def player_move(game: Game):
             print(f"invalid PTN: {error}")
             continue
         try:
-            game.play(move)
-            break  # valid move was entered and played
+            game.clone_and_play(move)
+            return move  # valid move was entered and played
         except ValueError as error:
             print(f"invalid move: {error}")
 
@@ -56,9 +56,10 @@ def cli():
     while game.result() == GameResult.Ongoing:
         pretty_print(game)
         if game.to_move == player_color:
-            player_move(game)
+            move = player_move(game)
         else:
-            bot_move(game)
+            move = bot_move(game)
+        game.play(move)
 
     # Summary after the game.
     pretty_print(game)
