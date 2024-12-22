@@ -142,5 +142,4 @@ def bot_move(game: Game) -> Move:
                 best_move = my_move
                 break
 
-    print(f"the bot played {best_move}")
     return best_move

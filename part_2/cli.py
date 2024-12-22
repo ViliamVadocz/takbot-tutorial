@@ -59,6 +59,7 @@ def cli():
             move = player_move(game)
         else:
             move = bot_move(game)
+            print(f"the bot played {move}")
         game.play(move)
 
     # Summary after the game.
