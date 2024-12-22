@@ -123,8 +123,8 @@ def move_ordering(game: Game) -> list[Move]:
     return sorted(possible_moves, key=move_score, reverse=game.ply >= 2)
 
 
-def bot_move(game: Game):
-    """Pick and play a move automatically."""
+def bot_move(game: Game) -> Move:
+    """Pick a move automatically."""
     sorted_moves = move_ordering(game)
     best_move = sorted_moves[0]
 
@@ -142,5 +142,4 @@ def bot_move(game: Game):
                 best_move = my_move
                 break
 
-    game.play(best_move)
-    print(f"the bot played {best_move}")
+    return best_move
