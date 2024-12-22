@@ -118,18 +118,22 @@ async def talk_to_playtak():
 
         await ws.send("Login Guest")
         await ws.send(seek(6, 5 * 60, 5))
+        print("Waiting for someone to join the seek...")
 
         game_id, my_color = await wait_until_game_start(ws)
-        print(game_id, my_color)
+        print(f"Game started! id: {game_id}, my_color: {my_color}")
 
         game = new_game(6)
         while game.result() == GameResult.Ongoing:
             if game.to_move == my_color:
                 move = bot_move(game)
                 await ws.send(f"Game#{game_id} {to_playtak_notation(move)}")
+                print("bot played: {move}")
             else:
                 move = await wait_until_move(ws, game_id)
+                print("opp played: {move}")
             game.play(move)
+        print(f"result: {game.result()}")
 
         stop_event.set()
         print("Waiting for all background tasks to finish...")
